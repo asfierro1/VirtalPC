@@ -1,0 +1,468 @@
+andrewf
+=================================================
+Assemble.java SOURCE: ============================
+import java.io.*;
+import java.util.*; 
+
+public class Assemble
+{
+    public static String pad(int n, int w)
+    {
+	String machineCode = "";
+	machineCode = Integer.toString(n);	 
+	int machineCodeLength = machineCode.length();
+  
+	int remainingZeros = w  - machineCodeLength;
+	for(int i = remainingZeros; i > 0; i--)
+	    machineCode = "0" + machineCode;
+
+	return machineCode;
+    }
+
+
+    static void readSrc(String fname) throws IOException
+    {
+	FileReader fr = new FileReader(fname);
+	BufferedReader br = new BufferedReader(fr);
+	String buffer, operator, operand;
+	buffer = operator = operand = "";
+	StringTokenizer st = new StringTokenizer(buffer);
+	String operators[] = {"HALT","ADD","SUB","MLT","DIV","ILOAD","LOAD","STOR","READ","WRITE","BR","BZ","BN","DUMP"};
+	int index, opcode;
+        
+        while ((buffer = br.readLine()) != null)
+        {
+	    if( ( buffer.length() == 0) || ( buffer.charAt(0) == '#' ) )
+		continue;            
+
+	    st = new StringTokenizer(buffer);
+	    operator = st.nextToken();
+	    operand = st.nextToken(); 
+	
+	    if( (Integer.parseInt(operand) < 0) || (Integer.parseInt(operand) > 99) )
+	    { 
+	       System.out.println("Error: " + operand + " Operand out of range.");
+	       System.exit(0);
+	    }    
+	
+	    opcode = -1;
+	    for(index = 0; index < operators.length; index++)
+	    {
+		if( operator.equals( operators[index] ) )
+		{
+                  // convert string operator to numeric form.
+		  opcode = index;
+		  break;
+		}
+	    }	    
+	    
+	    if(opcode == -1)
+	    {
+	    	System.out.println("Error: " + operator + " IS NOT VALID!");
+		System.exit(0);
+	    }
+
+            System.out.println(pad(opcode,2) + pad(Integer.parseInt(operand),2));
+        }
+    }
+
+    public static void main(String argv[]) throws IOException
+    {
+        if (argv.length != 1)
+        {
+            System.out.println("usage:  java Assemble INPUTFILE");
+            System.exit(0);
+        }
+
+        readSrc(argv[0]);
+    }
+}
+VPCrte.java SOURCE: ============================
+import java.io.*;
+
+public class VPCrte
+{
+    static final int MEMSIZ = 100;
+
+    static final int HALT  = 0;
+    static final int ADD   = 1;
+    static final int SUB   = 2;
+    static final int MLT   = 3;
+    static final int DIV   = 4;
+    static final int ILOAD = 5;
+    static final int LOAD  = 6;
+    static final int STOR  = 7;
+    static final int READ  = 8;
+    static final int WRITE = 9;
+    static final int BR    = 10;
+    static final int BZ    = 11;
+    static final int BN    = 12;
+    static final int DUMP  = 13;
+ 
+    static int MEMORY[] = new int[MEMSIZ];
+
+    static int PCREG;
+    static int IRREG;
+    static int GPREG;
+    
+    static boolean debug = false;
+
+    static void readToMemory(String fname) throws IOException
+    {
+        FileReader fr = new FileReader(fname);
+        BufferedReader br = new BufferedReader(fr);
+	String buffer = ""; int index = 0;
+	
+	while( (buffer = br.readLine()) != null  )
+        {
+            if (debug)
+            {      
+	   	System.out.println("readToMemory: [" + index +"] = (" + buffer + ")");
+            }
+            
+	    MEMORY[index] = Integer.parseInt(buffer);
+	    index += 1;; 
+        }
+    }
+
+    public static String pad(int n, int w)
+    {
+        String machineCode = "";
+        machineCode = Integer.toString(n);
+        int machineCodeLength = machineCode.length();
+
+        int remainingZeros = w  - machineCodeLength;
+        for(int i = remainingZeros; i > 0; i--)
+            machineCode = "0" + machineCode;
+
+        return machineCode;
+    }
+    
+    public static void dumpMemory()
+    {
+        System.out.println("===================================================================");
+        int c=0;
+
+        System.out.println("PCREG = " + pad(PCREG, 4));
+        System.out.println("IRREG = " + pad(IRREG,4));
+        System.out.println("GPREG = " + pad(GPREG, 4) + "\n");
+         
+        System.out.println("MEMORY:     0     1     2     3     4     5     6     7     8     9");
+        System.out.println("    ---------------------------------------------------------------");
+        
+        for (int i=0; i<MEMSIZ; i++)
+        {
+            if ((i%10) == 0)
+            {
+                System.out.print("     " + c + "|");
+                c++;
+            }
+            
+            System.out.print("  " + pad(MEMORY[i], 4));
+            
+            if (((i+1)%10) == 0)
+                System.out.println();
+        }
+        System.out.println();
+        System.out.println("===================================================================");
+    }
+       
+    public static void runProg() throws IOException
+    {
+	int opcode, operand;
+	opcode = 99; operand = 0;
+	PCREG = 0;
+        
+	while(opcode != HALT)
+        {
+            IRREG = MEMORY[PCREG];        
+	    BufferedReader input = new BufferedReader
+                           (new InputStreamReader(System.in));
+	    String inputFromUser = "";
+
+	    opcode = (IRREG / 100);
+	    operand = (IRREG % 100); 		
+            
+            if (debug)   
+            {
+		System.out.print("runProg: MEMORY[" + pad(PCREG,2) + "] = " + 
+		pad(IRREG,4) + ", opcode = " + pad(opcode,2) + ", operand = " 
+		+ pad(operand,2) + ", GPREG = " + pad(GPREG,4) + " (");
+		
+		switch(opcode)
+		{
+		   case(HALT):
+		     System.out.print("HALT)\n");
+		     break;
+		   case(ADD):
+		     System.out.print("ADD)\n");
+		     break;
+		   case(SUB):
+		     System.out.print("SUB)\n");
+		     break;
+		   case(MLT):
+		     System.out.print("MLT)\n");
+		     break;
+		   case(DIV):
+		     System.out.print("DIV)\n");
+		     break;
+		   case(ILOAD):
+		     System.out.print("ILOAD)\n");
+		     break;
+		   case(LOAD):
+		     System.out.print("LOAD)\n");
+		     break;
+		   case(STOR):
+		     System.out.print("STOR)\n");
+		     break;
+		   case(READ):
+		     System.out.print("READ)\n");
+		     break;
+		   case(WRITE):
+		     System.out.print("WRITE)\n");
+		     break;
+		   case(BR):
+		     System.out.print("BR)\n");
+		     break;
+		   case(BZ):
+		     System.out.print("BZ)\n");
+		     break;
+		   case(BN):
+		     System.out.print("BN)\n");
+		     break;
+		   case(DUMP):
+		     System.out.print("DUMP)\n");
+		     break;
+		}
+            }
+
+	    switch(opcode)
+	    {
+	       case ADD:
+		    GPREG += MEMORY[operand];
+		    break;
+	       case SUB:
+		    GPREG -= MEMORY[operand];
+		    break;
+	       case MLT:
+		    GPREG *= MEMORY[operand];
+		    break;
+	       case DIV:
+		    GPREG /= MEMORY[operand];
+		    break;
+	       case ILOAD:
+		    GPREG = operand;
+		    break;
+	       case LOAD:
+		    GPREG = MEMORY[operand];
+		    break;
+	       case STOR:
+		    MEMORY[operand] = GPREG;
+		    break;
+	       case READ:
+		    System.out.print("["+ operand +"]? ");
+		    inputFromUser = input.readLine();
+		    MEMORY[operand] = Integer.parseInt(inputFromUser);
+		    break;
+	       case WRITE:
+		    System.out.println("["+ operand + "] -> " + MEMORY[operand]);
+		    break;
+	       case BR:
+		    PCREG = operand;
+		    continue;
+	       case BZ:
+		    if(GPREG == 0) 
+		    { 
+		      PCREG = operand;
+		      continue;
+		    }
+		    break;
+	       case BN:
+		    if(GPREG != 0)
+		    { 
+		      PCREG = operand;
+		      continue;
+		    }
+		    break;
+	       case DUMP:
+		    dumpMemory();
+		    break;
+	    }
+	    PCREG += 1;
+        }
+    }
+    
+    public static void main(String argv[]) throws IOException
+    {
+        if (argv.length == 0) 
+        {
+            System.out.println("usage: java VPCrte FILENAME.exe [ debug ]");
+            System.exit(0);
+        } 
+        
+        if ((argv.length == 2) && (argv[1].equals("debug"))) debug = true;
+
+        readToMemory(argv[0]);
+
+        if (debug) dumpMemory();
+        
+        runProg();
+    }
+}
+averageNums.asm SOURCE: ============================
+READ 50   #Have the user enter in a new value to add to the total sum.
+LOAD 50   #Load the GPREG  with the current value of [50].
+BZ 12     #Go down to the bottom to do average, if GPREG = 0.
+LOAD 51   #Load up [51] to begin our sum.
+ADD 50    #GPREG = GPREG + [50].
+STOR 51   #Store my new total sum into [51].
+WRITE 51  #Display my new total sum.
+
+ILOAD 1  #Load an intital one into GPREG for counter.
+ADD 52   #Increase by counter by one.
+STOR 52  #Store the new count in [52].
+WRITE 52 #Display the count for confirmation.
+
+BR 0     #User is not finished yet. Go back up!
+LOAD 51  #GPREG is loaded with the current sum from [51].
+DIV 52   #Divide the GPREG by by counter in [52].
+STOR 53   #Store the average into [53].
+WRITE 53  #Display the average.
+HALT 99  #End Program.
+OUTPUT1: ==================================================
+0508
+0780
+0505
+0180
+0780
+1399
+Error: WRIT IS NOT VALID!
+OUTPUT2: ==================================================
+0508
+0780
+0505
+0180
+0780
+Error: -1 Operand out of range.
+OUTPUT3: ==================================================
+readToMemory: [0] = (0850)
+readToMemory: [1] = (0650)
+readToMemory: [2] = (1112)
+readToMemory: [3] = (0651)
+readToMemory: [4] = (0150)
+readToMemory: [5] = (0751)
+readToMemory: [6] = (0951)
+readToMemory: [7] = (0501)
+readToMemory: [8] = (0152)
+readToMemory: [9] = (0752)
+readToMemory: [10] = (0952)
+readToMemory: [11] = (1000)
+readToMemory: [12] = (0651)
+readToMemory: [13] = (0452)
+readToMemory: [14] = (0753)
+readToMemory: [15] = (0953)
+readToMemory: [16] = (0099)
+===================================================================
+PCREG = 0000
+IRREG = 0000
+GPREG = 0000
+
+MEMORY:     0     1     2     3     4     5     6     7     8     9
+    ---------------------------------------------------------------
+     0|  0850  0650  1112  0651  0150  0751  0951  0501  0152  0752
+     1|  0952  1000  0651  0452  0753  0953  0099  0000  0000  0000
+     2|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+     3|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+     4|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+     5|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+     6|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+     7|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+     8|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+     9|  0000  0000  0000  0000  0000  0000  0000  0000  0000  0000
+
+===================================================================
+runProg: MEMORY[00] = 0850, opcode = 08, operand = 50, GPREG = 0000 (READ)
+[50]? runProg: MEMORY[01] = 0650, opcode = 06, operand = 50, GPREG = 0000 (LOAD)
+runProg: MEMORY[02] = 1112, opcode = 11, operand = 12, GPREG = 0007 (BZ)
+runProg: MEMORY[03] = 0651, opcode = 06, operand = 51, GPREG = 0007 (LOAD)
+runProg: MEMORY[04] = 0150, opcode = 01, operand = 50, GPREG = 0000 (ADD)
+runProg: MEMORY[05] = 0751, opcode = 07, operand = 51, GPREG = 0007 (STOR)
+runProg: MEMORY[06] = 0951, opcode = 09, operand = 51, GPREG = 0007 (WRITE)
+[51] -> 7
+runProg: MEMORY[07] = 0501, opcode = 05, operand = 01, GPREG = 0007 (ILOAD)
+runProg: MEMORY[08] = 0152, opcode = 01, operand = 52, GPREG = 0001 (ADD)
+runProg: MEMORY[09] = 0752, opcode = 07, operand = 52, GPREG = 0001 (STOR)
+runProg: MEMORY[10] = 0952, opcode = 09, operand = 52, GPREG = 0001 (WRITE)
+[52] -> 1
+runProg: MEMORY[11] = 1000, opcode = 10, operand = 00, GPREG = 0001 (BR)
+runProg: MEMORY[00] = 0850, opcode = 08, operand = 50, GPREG = 0001 (READ)
+[50]? runProg: MEMORY[01] = 0650, opcode = 06, operand = 50, GPREG = 0001 (LOAD)
+runProg: MEMORY[02] = 1112, opcode = 11, operand = 12, GPREG = 0008 (BZ)
+runProg: MEMORY[03] = 0651, opcode = 06, operand = 51, GPREG = 0008 (LOAD)
+runProg: MEMORY[04] = 0150, opcode = 01, operand = 50, GPREG = 0007 (ADD)
+runProg: MEMORY[05] = 0751, opcode = 07, operand = 51, GPREG = 0015 (STOR)
+runProg: MEMORY[06] = 0951, opcode = 09, operand = 51, GPREG = 0015 (WRITE)
+[51] -> 15
+runProg: MEMORY[07] = 0501, opcode = 05, operand = 01, GPREG = 0015 (ILOAD)
+runProg: MEMORY[08] = 0152, opcode = 01, operand = 52, GPREG = 0001 (ADD)
+runProg: MEMORY[09] = 0752, opcode = 07, operand = 52, GPREG = 0002 (STOR)
+runProg: MEMORY[10] = 0952, opcode = 09, operand = 52, GPREG = 0002 (WRITE)
+[52] -> 2
+runProg: MEMORY[11] = 1000, opcode = 10, operand = 00, GPREG = 0002 (BR)
+runProg: MEMORY[00] = 0850, opcode = 08, operand = 50, GPREG = 0002 (READ)
+[50]? runProg: MEMORY[01] = 0650, opcode = 06, operand = 50, GPREG = 0002 (LOAD)
+runProg: MEMORY[02] = 1112, opcode = 11, operand = 12, GPREG = 0009 (BZ)
+runProg: MEMORY[03] = 0651, opcode = 06, operand = 51, GPREG = 0009 (LOAD)
+runProg: MEMORY[04] = 0150, opcode = 01, operand = 50, GPREG = 0015 (ADD)
+runProg: MEMORY[05] = 0751, opcode = 07, operand = 51, GPREG = 0024 (STOR)
+runProg: MEMORY[06] = 0951, opcode = 09, operand = 51, GPREG = 0024 (WRITE)
+[51] -> 24
+runProg: MEMORY[07] = 0501, opcode = 05, operand = 01, GPREG = 0024 (ILOAD)
+runProg: MEMORY[08] = 0152, opcode = 01, operand = 52, GPREG = 0001 (ADD)
+runProg: MEMORY[09] = 0752, opcode = 07, operand = 52, GPREG = 0003 (STOR)
+runProg: MEMORY[10] = 0952, opcode = 09, operand = 52, GPREG = 0003 (WRITE)
+[52] -> 3
+runProg: MEMORY[11] = 1000, opcode = 10, operand = 00, GPREG = 0003 (BR)
+runProg: MEMORY[00] = 0850, opcode = 08, operand = 50, GPREG = 0003 (READ)
+[50]? runProg: MEMORY[01] = 0650, opcode = 06, operand = 50, GPREG = 0003 (LOAD)
+runProg: MEMORY[02] = 1112, opcode = 11, operand = 12, GPREG = 0000 (BZ)
+runProg: MEMORY[12] = 0651, opcode = 06, operand = 51, GPREG = 0000 (LOAD)
+runProg: MEMORY[13] = 0452, opcode = 04, operand = 52, GPREG = 0024 (DIV)
+runProg: MEMORY[14] = 0753, opcode = 07, operand = 53, GPREG = 0008 (STOR)
+runProg: MEMORY[15] = 0953, opcode = 09, operand = 53, GPREG = 0008 (WRITE)
+[53] -> 8
+runProg: MEMORY[16] = 0099, opcode = 00, operand = 99, GPREG = 0008 (HALT)
+DUE DATE: Nov 30 7:00 AM  ========================================
+total 92
+drwxrwxr-x.  2 andrewf andrewf  4096 Nov 30 08:29 .
+drwx------. 10 andrewf andrewf   105 Oct 26 20:46 ..
+-rw-rw-r--.  1 andrewf andrewf   292 Nov 10 20:44 addTwoNumsInteractive.asm
+-rw-rw-r--.  1 andrewf andrewf  2466 Nov 29 18:04 Assemble.class
+-rw-rw-r--.  1 andrewf andrewf  1962 Nov 18 13:37 Assemble.java
+-rw-rw-r--.  1 andrewf andrewf  1107 Oct 26 20:46 Assemble.pseudo
+-rw-rw-r--.  1 andrewf andrewf   779 Nov 11 19:04 averageNums.asm
+-rw-rw-r--.  1 andrewf andrewf    85 Nov 29 18:05 averageNums.exe
+-rw-rw-r--.  1 andrewf andrewf   276 Nov 29 22:25 branchAssembly.asm
+-rw-rw-r--.  1 andrewf andrewf    77 Nov 18 14:18 countDown.asm
+-rw-rw-r--.  1 andrewf andrewf    40 Nov 29 18:05 countDown.exe
+-rw-rw-r--.  1 andrewf andrewf   127 Nov 18 14:30 countUp.asm
+-rw-rw-r--.  1 andrewf andrewf    70 Nov 18 14:31 countUp.exe
+-rw-rw-r--.  1 andrewf andrewf  1231 Nov  2 16:23 IO.class
+-rw-rw-r--.  1 andrewf andrewf   501 Nov  2 16:23 IO.java
+-rw-r--r--.  1 root    root    13863 Nov 30 08:29 README.MCU
+-rw-rw-r--.  1 andrewf andrewf  4721 Nov 29 18:05 VPCrte.class
+-rw-rw-r--.  1 andrewf andrewf  5707 Nov 18 13:38 VPCrte.java
+-rw-rw-r--.  1 andrewf andrewf  3258 Nov  8 20:04 VPCrte.pseudo
+==========================================================
+
+
+Good job!
+
+One small nit (that I'm confident you can implement now that I suggest it)
+is your "instruction lookup code" (implemented as a switch statement in your
+fetch/execute loop in the RTE) is a bit "cave-many".  You could make this
+slicker by using the integer opcode as an index into a String array of
+instructions.  One line of code to generate the String instruction!  -2pts
+
+
+Grade:  98
